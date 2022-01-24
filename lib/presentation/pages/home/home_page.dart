@@ -2,9 +2,16 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:ditonton/common/constants.dart';
 import 'package:ditonton/domain/entities/movie/movie.dart';
 import 'package:ditonton/domain/entities/tv/tv.dart';
+import 'package:ditonton/presentation/cubit/movie/movie_now_playing_cubit.dart';
+import 'package:ditonton/presentation/cubit/movie/movie_popular_cubit.dart';
+import 'package:ditonton/presentation/cubit/movie/movie_top_rated_cubit.dart';
+import 'package:ditonton/presentation/cubit/tv/tv_now_playing_cubit.dart';
+import 'package:ditonton/presentation/cubit/tv/tv_popular_cubit.dart';
+import 'package:ditonton/presentation/cubit/tv/tv_top_rated_cubit.dart';
 import 'package:ditonton/presentation/pages/about/about_page.dart';
 import 'package:ditonton/presentation/pages/movie/movie_detail_page.dart';
 import 'package:ditonton/presentation/pages/movie/popular_movies_page.dart';
+import 'package:ditonton/presentation/pages/tv/nowplaying_tv_page.dart';
 import 'package:ditonton/presentation/pages/tv/popular_tv_page.dart';
 import 'package:ditonton/presentation/pages/search/search_page.dart';
 import 'package:ditonton/presentation/pages/movie/top_rated_movies_page.dart';
@@ -12,11 +19,8 @@ import 'package:ditonton/presentation/pages/tv/top_rated_tv_page.dart';
 import 'package:ditonton/presentation/pages/tv/tv_detail_page.dart';
 import 'package:ditonton/presentation/pages/movie/watchlist_movies_page.dart';
 import 'package:ditonton/presentation/pages/tv/watchlist_tv_page.dart';
-import 'package:ditonton/presentation/provider/movie/movie_list_notifier.dart';
-import 'package:ditonton/common/state_enum.dart';
-import 'package:ditonton/presentation/provider/tv/tv_list_notifier.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../movie/nowplaying_movies_page.dart';
 import '../tv/nowplaying_tv_page.dart';
@@ -32,16 +36,17 @@ class _HomeMoviePageState extends State<HomeMoviePage> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(
-        () => Provider.of<MovieListNotifier>(context, listen: false)
-          ..fetchNowPlayingMovies()
-          ..fetchPopularMovies()
-          ..fetchTopRatedMovies());
+    Future.microtask(() {
+      context.read<MovieNowPlayingCubit>().get();
+      context.read<MoviePopularCubit>().get();
+      context.read<MovieTopRatedCubit>().get();
+    });
 
-    Future.microtask(() => Provider.of<TVListNotifier>(context, listen: false)
-      ..fetchNowPlayingTV()
-      ..fetchPopularTV()
-      ..fetchTopRatedTV());
+    Future.microtask(() {
+      context.read<TVNowPlayingCubit>().get();
+      context.read<TVPopularCubit>().get();
+      context.read<TVTopRatedCubit>().get();
+    });
   }
 
   @override
@@ -59,16 +64,16 @@ class _HomeMoviePageState extends State<HomeMoviePage> {
             ),
             ListTile(
               leading: const Icon(Icons.save_alt),
-              title: const Text('Movie Watchlist'),
+              title: const Text('TV Watchlist'),
               onTap: () {
-                Navigator.pushNamed(context, WatchlistMoviesPage.routeName);
+                Navigator.pushNamed(context, WatchlistTVPage.routeName);
               },
             ),
             ListTile(
               leading: const Icon(Icons.save_alt),
-              title: const Text('TV Watchlist'),
+              title: const Text('Movie Watchlist'),
               onTap: () {
-                Navigator.pushNamed(context, WatchlistTVPage.routeName);
+                Navigator.pushNamed(context, WatchlistMoviesPage.routeName);
               },
             ),
             ListTile(
@@ -86,6 +91,7 @@ class _HomeMoviePageState extends State<HomeMoviePage> {
         actions: [
           IconButton(
             onPressed: () {
+              // FirebaseCrashlytics.instance.crash();
               Navigator.pushNamed(context, SearchPage.routeName);
             },
             icon: const Icon(Icons.search),
@@ -104,104 +110,111 @@ class _HomeMoviePageState extends State<HomeMoviePage> {
                 onTap: () =>
                     Navigator.pushNamed(context, NowplayingTVPage.routeName),
               ),
-              Consumer<TVListNotifier>(builder: (context, data, child) {
-                final state = data.nowPlayingState;
-                if (state == RequestState.loading) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
-                } else if (state == RequestState.loaded) {
-                  return TVList(data.nowPlayingTV);
-                } else {
-                  return const Text('Failed');
-                }
-              }),
+              BlocBuilder<TVNowPlayingCubit, TVNowPlayingState>(
+                builder: (context, state) {
+                  if (state is TVNowPlayingLoadingState) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (state is TVNowPlayingLoadedState) {
+                    return TVList(tv: state.items);
+                  } else if (state is TVNowPlayingErrorState) {
+                    return Center(child: Text(state.message));
+                  } else {
+                    return const SizedBox();
+                  }
+                },
+              ),
               _buildSubHeading(
                 title: 'Popular TV Series',
                 onTap: () =>
                     Navigator.pushNamed(context, PopularTVPage.routeName),
               ),
-              Consumer<TVListNotifier>(builder: (context, data, child) {
-                final state = data.popularTVState;
-                if (state == RequestState.loading) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
-                } else if (state == RequestState.loaded) {
-                  return TVList(data.popularTV);
-                } else {
-                  return const Text('Failed');
-                }
-              }),
+              BlocBuilder<TVNowPlayingCubit, TVNowPlayingState>(
+                builder: (context, state) {
+                  if (state is TVNowPlayingLoadingState) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (state is TVNowPlayingLoadedState) {
+                    return TVList(tv: state.items);
+                  } else if (state is TVNowPlayingErrorState) {
+                    return Center(child: Text(state.message));
+                  } else {
+                    return const SizedBox();
+                  }
+                },
+              ),
               _buildSubHeading(
                 title: 'Top Rated TV Series',
                 onTap: () =>
                     Navigator.pushNamed(context, TopRatedTVPage.routeName),
               ),
-              Consumer<TVListNotifier>(builder: (context, data, child) {
-                final state = data.topRatedTVState;
-                if (state == RequestState.loading) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
-                } else if (state == RequestState.loaded) {
-                  return TVList(data.topRatedTV);
-                } else {
-                  return const Text('Failed');
-                }
-              }),
+              BlocBuilder<TVTopRatedCubit, TVTopRatedState>(
+                builder: (context, state) {
+                  if (state is TVTopRatedLoadingState) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (state is TVTopRatedLoadedState) {
+                    return TVList(tv: state.items);
+                  } else if (state is TVTopRatedErrorState) {
+                    return Center(child: Text(state.message));
+                  } else {
+                    return const SizedBox();
+                  }
+                },
+              ),
               //End TV Area
               _buildSubHeading(
                 title: 'Now Playing Movies',
-                onTap: () =>
-                    Navigator.pushNamed(context, NowplayingMoviePage.routeName),
+                onTap: () => Navigator.pushNamed(
+                    context, NowplayingMoviePage.routeName),
               ),
-              Consumer<MovieListNotifier>(builder: (context, data, child) {
-                final state = data.nowPlayingState;
-                if (state == RequestState.loading) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
-                } else if (state == RequestState.loaded) {
-                  return MovieList(data.nowPlayingMovies);
-                } else {
-                  return const Text('Failed');
-                }
-              }),
+              BlocBuilder<MovieNowPlayingCubit, MovieNowPlayingState>(
+                builder: (context, state) {
+                  if (state is MovieNowPlayingLoadingState) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (state is MovieNowPlayingLoadedState) {
+                    return MovieList(movies: state.items);
+                  } else if (state is MovieNowPlayingErrorState) {
+                    return Center(child: Text(state.message));
+                  } else {
+                    return const SizedBox();
+                  }
+                },
+              ),
               _buildSubHeading(
                 title: 'Popular Movies',
                 onTap: () =>
                     Navigator.pushNamed(context, PopularMoviesPage.routeName),
               ),
-              Consumer<MovieListNotifier>(builder: (context, data, child) {
-                final state = data.popularMoviesState;
-                if (state == RequestState.loading) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
-                } else if (state == RequestState.loaded) {
-                  return MovieList(data.popularMovies);
-                } else {
-                  return const Text('Failed');
-                }
-              }),
+
+              BlocBuilder<MoviePopularCubit, MoviePopularState>(
+                builder: (context, state) {
+                  if (state is MoviePopularLoadingState) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (state is MoviePopularLoadedState) {
+                    return MovieList(movies: state.items);
+                  } else if (state is MoviePopularErrorState) {
+                    return Center(child: Text(state.message));
+                  } else {
+                    return const SizedBox();
+                  }
+                },
+              ),
               _buildSubHeading(
                 title: 'Top Rated Movies',
-                onTap: () =>
-                    Navigator.pushNamed(context, TopRatedMoviesPage.routeName),
+                onTap: () => Navigator.pushNamed(
+                    context, TopRatedMoviesPage.routeName),
               ),
-              Consumer<MovieListNotifier>(builder: (context, data, child) {
-                final state = data.topRatedMoviesState;
-                if (state == RequestState.loading) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
-                } else if (state == RequestState.loaded) {
-                  return MovieList(data.topRatedMovies);
-                } else {
-                  return const Text('Failed');
-                }
-              }),
+              BlocBuilder<MovieTopRatedCubit, MovieTopRatedState>(
+                builder: (context, state) {
+                  if (state is MovieTopRatedLoadingState) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (state is MovieTopRatedLoadedState) {
+                    return MovieList(movies: state.items);
+                  } else if (state is MovieTopRatedErrorState) {
+                    return Center(child: Text(state.message));
+                  } else {
+                    return const SizedBox();
+                  }
+                },
+              ),
             ],
           ),
         ),
@@ -234,7 +247,7 @@ class _HomeMoviePageState extends State<HomeMoviePage> {
 class MovieList extends StatelessWidget {
   final List<Movie> movies;
 
-  const MovieList(this.movies, {Key? key}) : super(key: key);
+  const MovieList({Key? key, required this.movies}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -276,7 +289,7 @@ class MovieList extends StatelessWidget {
 class TVList extends StatelessWidget {
   final List<TV> tv;
 
-  const TVList(this.tv, {Key? key}) : super(key: key);
+  const TVList({Key? key, required this.tv}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

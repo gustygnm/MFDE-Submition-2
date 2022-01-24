@@ -1,11 +1,10 @@
 import 'package:ditonton/common/constants.dart';
-import 'package:ditonton/common/state_enum.dart';
-import 'package:ditonton/presentation/provider/movie/movie_search_notifier.dart';
-import 'package:ditonton/presentation/provider/tv/tv_search_notifier.dart';
+import 'package:ditonton/presentation/cubit/movie/movie_search_cubit.dart';
+import 'package:ditonton/presentation/cubit/tv/tv_search_cubit.dart';
 import 'package:ditonton/presentation/widgets/card/movie_card_list.dart';
 import 'package:ditonton/presentation/widgets/card/tv_card_list.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class SearchPage extends StatefulWidget {
   static const routeName = '/search';
@@ -18,22 +17,23 @@ class SearchPage extends StatefulWidget {
 
 class _SearchPageState extends State<SearchPage> {
   String? searchoption;
-    bool _isVisibleTv = true;
-    bool _isVisibleMovie = false;
+  bool _isVisibleTv = true;
+  bool _isVisibleMovie = false;
 
-    void showTv() {
-      setState(() {
-        _isVisibleTv = true;
-        _isVisibleMovie = false;
-      });
-    }
+  void showTv() {
+    setState(() {
+      _isVisibleTv = true;
+      _isVisibleMovie = false;
+    });
+  }
 
-    void showMovie() {
-      setState(() {
-        _isVisibleMovie = true;
-        _isVisibleTv = false;
-      });
-    }
+  void showMovie() {
+    setState(() {
+      _isVisibleMovie = true;
+      _isVisibleTv = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -46,9 +46,8 @@ class _SearchPageState extends State<SearchPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             TextField(
-              onSubmitted: (query) {
-                Provider.of<MovieSearchNotifier>(context, listen: false)
-                    .fetchMovieSearch(query);
+              onSubmitted: (query) async {
+                await context.read<MovieSearchCubit>().get(query);
                 showMovie();
               },
               decoration: const InputDecoration(
@@ -60,9 +59,8 @@ class _SearchPageState extends State<SearchPage> {
             ),
             const SizedBox(height: 16),
             TextField(
-              onSubmitted: (query) {
-                Provider.of<TVSearchNotifier>(context, listen: false)
-                    .fetchTVSearch(query);
+              onSubmitted: (query) async {
+                await context.read<TVSearchCubit>().get(query);
                 showTv();
               },
               decoration: const InputDecoration(
@@ -79,54 +77,52 @@ class _SearchPageState extends State<SearchPage> {
             ),
             Visibility(
               visible: _isVisibleTv,
-              child: Consumer<TVSearchNotifier>(
-                builder: (context, data, child) {
-                  if (data.state == RequestState.loading) {
-                    return const Center(
-                      child: CircularProgressIndicator(),
-                    );
-                  } else if (data.state == RequestState.loaded) {
-                    final result = data.searchResult;
+              child: BlocBuilder<TVSearchCubit, TVSearchState>(
+                builder: (context, state) {
+                  if (state is TVSearhLoadingState) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (state is TVSearchLoadedState) {
                     return Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(8),
-                        itemBuilder: (context, index) {
-                          final tv = data.searchResult[index];
-                          return TVCard(tv);
-                        },
-                        itemCount: result.length,
-                      ),
+                        child: ListView.builder(
+                      itemBuilder: (context, index) {
+                        final tv = state.items[index];
+                        return TVCard(tv: tv);
+                      },
+                      itemCount: state.items.length,
+                    ));
+                  } else if (state is TVSearchErrorState) {
+                    return Center(
+                      key: const Key('error_message'),
+                      child: Text(state.message),
                     );
                   } else {
-                    return Expanded(
-                      child: Container(),
-                    );
+                    return const SizedBox();
                   }
                 },
               ),
             ),
             Visibility(
               visible: _isVisibleMovie,
-              child: Consumer<MovieSearchNotifier>(
-                builder: (context, data, child) {
-                  if (data.state == RequestState.loading) {
-                    return const Center(
-                      child: CircularProgressIndicator(),
-                    );
-                  } else if (data.state == RequestState.loaded) {
-                    final result = data.searchResult;
+              child: BlocBuilder<MovieSearchCubit, MovieSearchState>(
+                builder: (context, state) {
+                  if (state is MovieSearhLoadingState) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (state is MovieSearchLoadedState) {
                     return Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(8),
-                        itemBuilder: (context, index) {
-                          final movie = data.searchResult[index];
-                          return MovieCard(movie);
-                        },
-                        itemCount: result.length,
-                      ),
+                        child: ListView.builder(
+                      itemBuilder: (context, index) {
+                        final movie = state.items[index];
+                        return MovieCard(movie: movie);
+                      },
+                      itemCount: state.items.length,
+                    ));
+                  } else if (state is MovieSearchErrorState) {
+                    return Center(
+                      key: const Key('error_message'),
+                      child: Text(state.message),
                     );
                   } else {
-                    return Container();
+                    return const SizedBox();
                   }
                 },
               ),

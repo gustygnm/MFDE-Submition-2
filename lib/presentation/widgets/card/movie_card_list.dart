@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 class MovieCard extends StatelessWidget {
   final Movie movie;
 
-  const MovieCard(this.movie, {Key? key}) : super(key: key);
+  const MovieCard({Key? key, required this.movie}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
